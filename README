@@ -1,0 +1,136 @@
+README
+======
+
+What is this program?
+---------------------
+
+This is the source code of our simulation program used in the following article:
+
+> Yamazaki T, Nagao S (2012)
+> A computational mechanism for unified gain and timing control in the cerebellum
+> PLoS ONE 7(3): e33319. doi:10.1371/ journal.pone.0033319
+> http://dx.plos.org/10.1371/journal.pone.0033319
+
+What files are included?
+------------------------
+
+The following files are included:
+* `Makefile`: Makefile
+* `okr.c`: The simulation program
+* `mt19937ar-cok.c`: [The Mersenne Twister][MT] pseudo random number generator
+* `pfinit.c`: Program to generate the initial synaptic weights for parallel fibers on Purkinje cells ($w_{ij}$)
+* `si.c`: Program to calculate similarity index
+* `ri.c`: Program to calculate reproducibility index
+* `wdist.c`: Program to calculate the synaptic weight distribution
+* `select.rb`: Program to analyze data
+* `sum.rb`: Program to analyze data
+* `psth.rb`: Program to analyze data
+* `plot_pkj.rb`: Program to analyze data
+* `plot_vn.rb`: Program to analyze data
+* `gainchange.rb`: Program to analyze data
+* `fit.gp`: Program to analyze data
+
+What do we need to use the program?
+-----------------------------------
+
+The following libraries are necessary to compile the program successfully:
+* [GNU Scientific Library (GSL)][GSL] for the ODE solver
+* [GD Graphics Library][GD] for generating a matrix of similarity index
+
+The following software are necessary to use the program:
+* `gnuplot`, a graph plotting software for data fitting and plotting
+* Ruby programming language for data analysis
+
+How can we carry out the simulation?
+------------------------------------
+
+1. Compile the program by simply typing `make`. The following executable files will be generated:
+* `okr` from `okr.c`
+* `pfinit` from `pfinit.c`
+* `si` from `si.c`
+* `ri` from `ri.c`
+* `wdist` from `wdist.c`
+
+2. Type `./pfinit w.0` to create the initial synaptic weight file for parallel fibers on Purkinje cells. A file `w.0` will be created.
+
+3. Type `./okr` to start a computer simulation of OKR adaptation for 300 trials. The number of trials is defined in the source code, specifically the variable `n_trials`. A typical simulation takes 9 hours on my Opteron PC.
+
+4. You will obtain files `gr.spk.aN`, `gr.spk.N`, `go.spk.N`, 'pkjvnio.spk.N` and `w.N`, where N is the cycle number of OKR simulation. These files are:
+
+* `gr.spk.aN`: Spike data of all granule cells. Each line denotes the spike time
+in ms (0...2000) and the neuron number (0...102,400) respectively.
+* `gr.spk.N`: Spike data of 1,024 representative granule cells from each granule-cell clusters. Each line denotes the spike time and the neuron number (0...1024), respectively.
+* `go.spk.N`: Spike data of all Golgi cells. Conventions as in `gr.spk.N`.
+* `pkjvnio.spk.N`: Spike data of Purkinje, basket, vestibular nuclear, and inferior olivary cells. Each line denotes the spike time and the neuron number, respectively, where the neuron number is (0...16) for Pukinje cells, 16 for the nucleus, 17 for the inferior olive, and (18...34) for basket cells.
+* `w.N`: synaptic weight data for parallel fibers on Purkinje cells. The format is:
+  	 for i=pkj0...pkj16
+	   for j=gr0...gr102400
+	     puts w[i][j]
+	   end
+	 end
+  Thus, each file contains 1638400 lines.
+
+How can we reproduce figures in the article?
+--------------------------------------------
+
+Now we are ready to reproduce figures. I will explain how to reproduce Figs.~2,3. Figures~4,5 can be reproduced similarly.
+
+Figure 2A:
+1. If you plot `gr.spk.1` using a graph plotting software such as `gnuplot`, you will obtain the top panel of Fig.~2A.
+2. Type `./sum.rb` to generate the data of active cell ratio as in the bottom panel of Fig.~2A from `gr.spk.a1`. If you plot the data using bezier smoothing as `gnuplot> plot 'sum.dat' smooth bezier`, then you will obtain the figure.
+
+Figure 2B:
+Type `./select.rb` to generate the spike data of 5 representative granule cells with IDs 136, 18, 86, 117, 94 as in Fig.~2B. The outputs files are `gr.136`, `gr.18`, `gr.86`, `gr.117`, `gr.94`, `h.136`, `h.18`, `h.86`, `h.117`, `h.94`. `h.N` are the average histograms. If you plot the spike data and the histogram with bezier smoothing, you will obtain Fig.~2B.
+
+Figure 2C:
+Type `./si gr.spk.a1 gr.spk.a1 c11` to generate the similarity index for `gr.spk.a1`, the spike patterns of granule cells at the 1 st cycle. Plot `c11.ac` to obtain Fig.~2C.
+
+Figure 2D:
+Type `./ri gr.spk.a2 gr.spk.a2 c12` to generate the reproducibility index between `gr.spk.a1` and `gr.spk.a2`. You will obtain `c12.d`. Repeat it until you obtain `c34.d`, `c56.d`, ..., and so on, and average them to produce Fig.~2D.
+
+Figure 3A:
+Type `./psth.rb 0 10` to generate `0_10.dat`, which is PSTH of Purkinje cell 10 at the initial cycle. Similarly, type `./psth.rb 100 10`, `./psth.rb 200 10`, `./psth.rb 30 10` to produce `100_10.dat`, `200_10.dat`, `300_10.dat`, which are PSTHs at 100th, 200th and 300th cycles. Then, type `gnuplot plot_pkj.gp` to fit all data with cosine functions and plot Fig.~3A.
+
+Figure 3B:
+Type `./psth.rb 0 16` to generate `0_16.dat`, which is PSTH of the VN neuron at the initial cycle. Similarly, type `./psth.rb 100 16`, `./psth.rb 200 16`, `./psth.rb 30 16` to produce `100_16.dat`, `200_16.dat`, `300_16.dat`, which are PSTHs at the 100th, 200th and 300th cycles. Then, type `gnuplot plot_vn.gp` to fit all data with cosine functions and plot Fig.~3B.
+
+Figure 3C:
+Type `./gainchange.rb` to generate `gainchange.dat`, the data of gain change as in Fig.~3C. The program calculates the modulation amplitude (`a`) for each 20 steps divided by the initial amplitude.
+
+Figure 3D:
+Type `wdist w.300 gr.spk.a1 wdist.dat` to generate `wdist.dat` from `w.300` and `gr.spk.a1` . Plot the file to obtain Fig.~3D.
+
+Figure 3E:
+You can reproduce the figure by carrying out computer simulations with different peak firing rate of MFs by resetting the value of `MF_maxfreq` and obtaining the modulation amplitude using `fit.rb`.
+
+Figure 3F:
+You can reproduce the figure by carrying out computer simulations with different peak firing rate of CFs by resetting the value of `CF_maxfreq` and obtaining the modulation amplitude using `fit.rb`.
+
+License
+-------
+
+`okr.c` is licenses under GPLv2, because `okr.c` uses the ODE solver in GSL. The other programs except `mt19937ar-cok.c` are under **public domain**.
+
+Contact
+-------
+
+If you have questions and/or comments on this program, please let me know:
+
+> YAMAZAKI, Tadashi
+> RIKEN Brain Science Institute
+> pone11@neuralgorithm.org
+> http://neuralgorithm.org/
+
+References
+----------
+
+[MT]: http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/MT2002/CODES/MTARCOK/mt19937ar-cok.c
+[GSL]: http://www.gnu.org/software/gsl/
+[GD]: http://www.boutell.com/gd/
+
+History
+-------
+
+* 20120310: Initial version
+* 20120317: Final version
+* 20120318: Release
